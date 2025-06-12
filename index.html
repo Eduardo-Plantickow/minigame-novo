@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoSort - Waste Sorting Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .floating {
+            animation: float 2s ease-in-out infinite;
+        }
+        .dragging {
+            opacity: 0.7;
+            transform: scale(1.05);
+            z-index: 10;
+        }
+        .correct {
+            background-color: rgba(74, 222, 128, 0.3);
+        }
+        .wrong {
+            background-color: rgba(248, 113, 113, 0.3);
+        }
+        .shake {
+            animation: shake 0.5s;
+        }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+        .countdown-bar {
+            transition: width 1s linear;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-b from-green-50 to-blue-50 min-h-screen font-sans">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Game Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-green-600 mb-2">EcoSort</h1>
+            <p class="text-gray-600 mb-4">Help sort waste correctly to protect our planet!</p>
+            <div class="flex justify-between items-center mb-4">
+                <div class="text-left">
+                    <p class="font-medium">Level: <span id="level" class="font-bold">1</span></p>
+                </div>
+                <div class="text-center">
+                    <p class="font-medium">Score: <span id="score" class="font-bold">0</span></p>
+                </div>
+                <div class="text-right">
+                    <p class="font-medium">Lives: <span id="lives" class="font-bold">❤️❤️❤️</span></p>
+                </div>
+            </div>
+            <div class="h-4 bg-gray-200 rounded-full overflow-hidden">
+                <div id="countdown" class="countdown-bar h-full bg-green-500 w-full"></div>
+            </div>
+        </header>
+
+        <!-- Game Area -->
+        <div class="game-area bg-white rounded-xl shadow-lg p-4 mb-8 min-h-96 relative overflow-hidden">
+            <!-- Bins Row -->
+            <div class="bins flex flex-wrap justify-center gap-4 mb-8">
+                <!-- Paper Bin -->
+                <div id="bin-paper" class="bin w-24 h-32 bg-blue-500 rounded-t-full cursor-pointer flex flex-col items-center justify-end transition-all duration-300" data-type="paper">
+                    <div class="w-full h-8 bg-blue-700 rounded-b-lg"></div>
+                    <p class="text-white text-sm font-medium mt-1">Paper</p>
+                </div>
+                <!-- Plastic Bin -->
+                <div id="bin-plastic" class="bin w-24 h-32 bg-red-500 rounded-t-full cursor-pointer flex flex-col items-center justify-end transition-all duration-300" data-type="plastic">
+                    <div class="w-full h-8 bg-red-700 rounded-b-lg"></div>
+                    <p class="text-white text-sm font-medium mt-1">Plastic</p>
+                </div>
+                <!-- Metal Bin -->
+                <div id="bin-metal" class="bin w-24 h-32 bg-yellow-500 rounded-t-full cursor-pointer flex flex-col items-center justify-end transition-all duration-300" data-type="metal">
+                    <div class="w-full h-8 bg-yellow-700 rounded-b-lg"></div>
+                    <p class="text-white text-sm font-medium mt-1">Metal</p>
+                </div>
+                <!-- Organic Bin -->
+                <div id="bin-organic" class="bin w-24 h-32 bg-amber-800 rounded-t-full cursor-pointer flex flex-col items-center justify-end transition-all duration-300" data-type="organic">
+                    <div class="w-full h-8 bg-amber-900 rounded-b-lg"></div>
+                    <p class="text-white text-sm font-medium mt-1">Organic</p>
+                </div>
+                <!-- Glass Bin -->
+                <div id="bin-glass" class="bin w-24 h-32 bg-green-600 rounded-t-full cursor-pointer flex flex-col items-center justify-end transition-all duration-300" data-type="glass">
+                    <div class="w-full h-8 bg-green-800 rounded-b-lg"></div>
+                    <p class="text-white text-sm font-medium mt-1">Glass</p>
+                </div>
+            </div>
+
+            <!-- Trash Items Area -->
+            <div id="trash-area" class="flex flex-wrap justify-center gap-4 min-h-48 relative mb-8">
+                <!-- Trash items will appear here -->
+            </div>
+        </div>
+
+        <!-- Game Controls -->
+        <div class="text-center">
+            <button id="start-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all">
+                Start Game
+            </button>
+            <button id="reset-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all ml-4 hidden">
+                Play Again
+            </button>
+        </div>
+
+        <!-- Game Instructions -->
+        <div class="mt-8 p-4 bg-blue-50 rounded-lg">
+            <h2 class="text-xl font-bold text-blue-700 mb-2">How to Play</h2>
+            <p class="text-gray-700 mb-2">Drag each waste item to the correct recycling bin:</p>
+            <ul class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <li class="flex items-center"><span class="w-4 h-4 bg-blue-500 mr-2 block"></span>Blue: Paper (newspaper, notebook, cardboard)</li>
+                <li class="flex items-center"><span class="w-4 h-4 bg-red-500 mr-2 block"></span>Red: Plastic (bottles, bags, straws)</li>
+                <li class="flex items-center"><span class="w-4 h-4 bg-yellow-500 mr-2 block"></span>Yellow: Metal (cans, nails, foil)</li>
+                <li class="flex items-center"><span class="w-4 h-4 bg-amber-800 mr-2 block"></span>Brown: Organic (food waste, banana peels)</li>
+                <li class="flex items-center"><span class="w-4 h-4 bg-green-600 mr-2 block"></span>Green: Glass (bottles, jars)</li>
+            </ul>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="game-over-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 text-center">
+                <h2 class="text-3xl font-bold text-green-600 mb-4">Game Over!</h2>
+                <p class="text-gray-700 mb-2">Your final score: <span id="final-score" class="font-bold text-green-600">0</span></p>
+                <p class="text-gray-700 mb-6">Level reached: <span id="final-level" class="font-bold">1</span></p>
+                <div id="educational-message" class="mb-6 p-4 bg-green-50 rounded-lg text-sm text-left">
+                    <p class="font-bold mb-2">Did you know?</p>
+                    <p>Recycling one ton of paper saves 17 trees and 7,000 gallons of water. Proper waste sorting helps reduce pollution and conserve natural resources.</p>
+                </div>
+                <button id="modal-close-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-full transition-all">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        const game = {
+            score: 0,
+            level: 1,
+            lives: 3,
+            timePerItem: 8, // seconds
+            isPlaying: false,
+            currentItem: null,
+            timer: null,
+            items: {
+                paper: [
+                    { name: "Newspaper", emoji: "📰" },
+                    { name: "Notebook", emoji: "📒" },
+                    { name: "Cardboard", emoji: "📦" }
+                ],
+                plastic: [
+                    { name: "Plastic Bottle", emoji: "🧴" },
+                    { name: "Plastic Bag", emoji: "🛍️" },
+                    { name: "Straw", emoji: "🥤" }
+                ],
+                metal: [
+                    { name: "Soda Can", emoji: "🥫" },
+                    { name: "Nail", emoji: "🔩" },
+                    { name: "Aluminum Foil", emoji: "🧻" }
+                ],
+                organic: [
+                    { name: "Banana Peel", emoji: "🍌" },
+                    { name: "Food Scraps", emoji: "🍎" },
+                    { name: "Coffee Grounds", emoji: "☕" }
+                ],
+                glass: [
+                    { name: "Glass Bottle", emoji: "🍾" },
+                    { name: "Broken Glass", emoji: "🥃" },
+                    { name: "Glass Jar", emoji: "🧂" }
+                ]
+            },
+            sounds: {
+                correct: new Audio('https://assets.mixkit.co/active_storage/sfx/2570/2570-preview.mp3'),
+                wrong: new Audio('https://assets.mixkit.co/active_storage/sfx/2591/2591-preview.mp3'),
+                levelUp: new Audio('https://assets.mixkit.co/active_storage/sfx/2684/2684-preview.mp3'),
+                gameOver: new Audio('https://assets.mixkit.co/active_storage/sfx/1837/1837-preview.mp3')
+            }
+        };
+
+        // DOM elements
+        const elements = {
+            score: document.getElementById('score'),
+            level: document.getElementById('level'),
+            lives: document.getElementById('lives'),
+            countdown: document.getElementById('countdown'),
+            startBtn: document.getElementById('start-btn'),
+            resetBtn: document.getElementById('reset-btn'),
+            trashArea: document.getElementById('trash-area'),
+            bins: document.querySelectorAll('.bin'),
+            gameOverModal: document.getElementById('game-over-modal'),
+            finalScore: document.getElementById('final-score'),
+            finalLevel: document.getElementById('final-level'),
+            modalCloseBtn: document.getElementById('modal-close-btn')
+        };
+
+        // Event listeners
+        elements.startBtn.addEventListener('click', startGame);
+        elements.resetBtn.addEventListener('click', startGame);
+        elements.modalCloseBtn.addEventListener('click', () => {
+            elements.gameOverModal.classList.add('hidden');
+        });
+
+        // Bin event listeners
+        elements.bins.forEach(bin => {
+            bin.addEventListener('dragover', handleDragOver);
+            bin.addEventListener('drop', handleDrop);
+        });
+
+        // Game functions
+        function startGame() {
+            game.score = 0;
+            game.level = 1;
+            game.lives = 3;
+            game.isPlaying = true;
+            elements.score.textContent = game.score;
+            elements.level.textContent = game.level;
+            elements.lives.textContent = '❤️❤️❤️';
+            elements.startBtn.classList.add('hidden');
+            elements.resetBtn.classList.add('hidden');
+            elements.trashArea.innerHTML = '';
+            createTrashItem();
+        }
+
+        function createTrashItem() {
+            // Clear previous item
+            elements.trashArea.innerHTML = '';
+            
+            // Randomly select a waste type and item
+            const wasteTypes = Object.keys(game.items);
+            const randomType = wasteTypes[Math.floor(Math.random() * wasteTypes.length)];
+            const randomItem = game.items[randomType][Math.floor(Math.random() * game.items[randomType].length)];
+            
+            // Create trash element
+            const trashElement = document.createElement('div');
+            trashElement.className = 'floating w-16 h-16 bg-white rounded-full flex flex-col items-center justify-center cursor-grab shadow-lg border-2 border-gray-200 hover:border-gray-300 transition-all';
+            trashElement.draggable = true;
+            trashElement.dataset.type = randomType;
+            trashElement.innerHTML = `<span class="text-2xl">${randomItem.emoji}</span><span class="text-xs">${randomItem.name}</span>`;
+            
+            // Drag events
+            trashElement.addEventListener('dragstart', (e) => {
+                game.currentItem = trashElement;
+                e.dataTransfer.setData('text/plain', trashElement.dataset.type);
+                trashElement.classList.add('dragging');
+            });
+            
+            trashElement.addEventListener('dragend', () => {
+                trashElement.classList.remove('dragging');
+            });
+            
+            elements.trashArea.appendChild(trashElement);
+            
+            // Start timer
+            startTimer();
+        }
+
+        function startTimer() {
+            let timeLeft = game.timePerItem - game.level + 1;
+            elements.countdown.style.width = '100%';
+            
+            const timerInterval = setInterval(() => {
+                timeLeft -= 0.1;
+                const percentage = (timeLeft / (game.timePerItem - game.level + 1)) * 100;
+                elements.countdown.style.width = `${Math.max(0, percentage)}%`;
+                
+                // Change color when time is running out
+                if (percentage < 30) {
+                    elements.countdown.classList.remove('bg-green-500');
+                    elements.countdown.classList.add('bg-yellow-500');
+                }
+                if (percentage < 15) {
+                    elements.countdown.classList.remove('bg-yellow-500');
+                    elements.countdown.classList.add('bg-red-500');
+                }
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeOut();
+                }
+            }, 100);
+            
+            game.timer = timerInterval;
+        }
+
+        function handleTimeOut() {
+            elements.countdown.classList.remove('bg-red-500', 'bg-yellow-500');
+            elements.countdown.classList.add('bg-green-500');
+            
+            // Lose a life if time runs out
+            game.lives--;
+            updateLivesDisplay();
+            game.sounds.wrong.play();
+            
+            if (game.lives <= 0) {
+                endGame();
+            } else {
+                // Shake animation for feedback
+                const trashItem = elements.trashArea.firstChild;
+                if (trashItem) {
+                    trashItem.classList.add('shake');
+                    setTimeout(() => {
+                        trashItem.classList.remove('shake');
+                        createTrashItem();
+                    }, 500);
+                }
+            }
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            clearInterval(game.timer);
+            
+            const correctType = e.currentTarget.dataset.type;
+            const userChoice = game.currentItem.dataset.type;
+            
+            if (correctType === userChoice) {
+                // Correct answer
+                game.score += 10 * game.level;
+                elements.score.textContent = game.score;
+                e.currentTarget.classList.add('correct');
+                game.sounds.correct.play();
+                
+                // Remove item with animation
+                game.currentItem.style.transform = `translate(${e.currentTarget.getBoundingClientRect().left - game.currentItem.getBoundingClientRect().left}px, ${e.currentTarget.getBoundingClientRect().top - game.currentItem.getBoundingClientRect().top}px) scale(0.5)`;
+                game.currentItem.style.opacity = '0';
+                game.currentItem.style.transition = 'all 0.5s ease';
+                
+                setTimeout(() => {
+                    e.currentTarget.classList.remove('correct');
+                    checkLevelUp();
+                }, 500);
+            } else {
+                // Wrong answer
+                game.lives--;
+                updateLivesDisplay();
+                e.currentTarget.classList.add('wrong', 'shake');
+                game.sounds.wrong.play();
+                
+                setTimeout(() => {
+                    e.currentTarget.classList.remove('wrong', 'shake');
+                }, 500);
+                
+                if (game.lives <= 0) {
+                    endGame();
+                    return;
+                }
+            }
+            
+            // Next item
+            setTimeout(() => {
+                createTrashItem();
+            }, 500);
+        }
+
+        function checkLevelUp() {
+            if (game.score >= game.level * 50) {
+                game.level++;
+                elements.level.textContent = game.level;
+                game.sounds.levelUp.play();
+                
+                // Visual feedback for level up
+                const levelUpDisplay = document.createElement('div');
+                levelUpDisplay.className = 'absolute inset-0 flex items-center justify-center pointer-events-none';
+                levelUpDisplay.innerHTML = `<div class="bg-blue-500 bg-opacity-20 text-blue-800 font-bold text-xl md:text-3xl rounded-full px-6 py-3 transform scale-0 animate-[scaleUp_0.5s_forwards]">Level ${game.level}!</div>`;
+                elements.trashArea.appendChild(levelUpDisplay);
+                
+                setTimeout(() => {
+                    elements.trashArea.removeChild(levelUpDisplay);
+                }, 1500);
+            }
+        }
+
+        function updateLivesDisplay() {
+            elements.lives.textContent = '❤️'.repeat(Math.max(0, game.lives));
+        }
+
+        function endGame() {
+            game.isPlaying = false;
+            game.sounds.gameOver.play();
+            elements.trashArea.innerHTML = '';
+            elements.startBtn.classList.add('hidden');
+            elements.resetBtn.classList.remove('hidden');
+            
+            // Show game over modal
+            elements.finalScore.textContent = game.score;
+            elements.finalLevel.textContent = game.level;
+            elements.gameOverModal.classList.remove('hidden');
+            
+            // Update educational message based on performance
+            let message = "";
+            if (game.score < 50) {
+                message = "It takes practice to learn proper waste sorting! Did you know that recycling one aluminum can saves enough energy to run a TV for 3 hours?";
+            } else if (game.score < 150) {
+                message = "Good effort! Proper recycling helps reduce landfill waste by up to 75%. Remember, plastic takes up to 1,000 years to decompose in landfills.";
+            } else {
+                message = "Great job! You're becoming a recycling expert. Did you know that glass is 100% recyclable and can be reused endlessly without loss in quality?";
+            }
+            
+            document.getElementById('educational-message').innerHTML = `
+                <p class="font-bold mb-2">${game.score >= 150 ? "Awesome!" : game.score >= 50 ? "Good effort!" : "Keep learning!"}</p>
+                <p>${message}</p>
+            `;
+        }
+
+        // Initialize game state
+        elements.score.textContent = game.score;
+        elements.level.textContent = game.level;
+        elements.lives.textContent = '❤️❤️❤️';
+    </script>
+<p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=Eduuuuuplan/mini-game-res-duos" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p></body>
+</html>
